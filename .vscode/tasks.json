@@ -1,0 +1,37 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Install prototype dependencies",
+			"type": "shell",
+			"command": "npm.cmd install",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Build florist prototype",
+			"type": "shell",
+			"command": "npm.cmd run build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "Run florist prototype",
+			"type": "shell",
+			"command": "npm.cmd run dev",
+			"isBackground": true,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "Preview florist prototype",
+			"type": "shell",
+			"command": "npm.cmd run start -- -p 3004",
+			"isBackground": true,
+			"problemMatcher": []
+		}
+	]
+}

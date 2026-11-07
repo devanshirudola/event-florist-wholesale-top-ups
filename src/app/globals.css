@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #f8f7f6; color: #302a31; font-family: var(--font-inter), Arial, sans-serif; font-size: 13px; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+::selection { background: #eee5f0; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { scrollbar-width: none; }
+@media print { .sidebar, .topbar, .no-print { display: none !important; } .main-content { margin: 0 !important; padding: 0 !important; } }
+
+@layer components {
+  .field { @apply h-9 w-full rounded-lg border border-stone-200 bg-white px-3 text-[11px] text-stone-700 outline-none transition placeholder:text-stone-400 focus:border-plum-300 focus:ring-2 focus:ring-plum-100; }
+  select.field { @apply pr-8; }
+  .btn-primary { @apply inline-flex min-h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-plum-900 px-3 py-2 text-[10px] font-semibold text-white transition hover:bg-plum-700 focus:outline-none focus:ring-2 focus:ring-plum-200; }
+  .btn-secondary { @apply inline-flex min-h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-stone-200 bg-white px-3 py-2 text-[10px] font-medium text-stone-600 transition hover:border-plum-200 hover:text-plum-700 focus:outline-none focus:ring-2 focus:ring-plum-100; }
+  .auth-field { @apply h-10 w-full rounded-lg border border-stone-200 bg-white px-3 text-[10px] text-stone-700 outline-none transition placeholder:text-stone-400 focus:border-plum-300 focus:ring-2 focus:ring-plum-100; }
+}
