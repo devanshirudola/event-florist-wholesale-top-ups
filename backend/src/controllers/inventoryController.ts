@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { inventoryAdjustmentSchema } from "../validators/schemas";
+import { inventoryAdjustmentSchema, PRODUCT_STATUSES } from "../validators/schemas";
 import {
   adjustInventory,
   listInventory,
@@ -12,11 +12,11 @@ import { sendData, sendPage } from "../utils/response";
 
 export const getInventory = asyncHandler(async (request: Request, response: Response) => {
   const query = request.pageQuery!;
-  const status = request.query.status ? String(request.query.status) : undefined;
-  if (status && !["LOW_STOCK", "OUT_OF_STOCK", "IN_STOCK"].includes(status)) {
+  const status = request.query.status === undefined ? undefined : String(request.query.status);
+  if (status && !(PRODUCT_STATUSES as readonly string[]).includes(status)) {
     throw new ApiError(400, "VALIDATION_ERROR", "Invalid inventory status filter");
   }
-  const result = await listInventory({ ...query, status });
+  const result = await listInventory({ ...query, status: status || undefined });
   sendPage(response, result.data, query.page, query.limit, result.total);
 });
 

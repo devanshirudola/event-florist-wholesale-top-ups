@@ -209,27 +209,39 @@ export default function AppShell({ section, productId, orderId }: { section: str
   useEffect(() => { setData(loadData()); setReady(true); }, []);
   useEffect(() => { if (ready) saveData(data); }, [data, ready]);
   useEffect(() => {
-    const savedRole = window.localStorage.getItem("event-florist-prototype-role");
-    if (savedRole === "Administrator" || savedRole === "Staff") setRole(savedRole);
     try {
+      const savedRole = window.localStorage.getItem("event-florist-prototype-role");
+      if (savedRole === "Administrator" || savedRole === "Staff") setRole(savedRole);
       const savedAccount = window.localStorage.getItem("event-florist-current-user");
       if (savedAccount) {
         const parsed = JSON.parse(savedAccount) as { name?: string; email?: string };
         if (parsed.name && parsed.email) setAccount({ name: parsed.name, email: parsed.email });
       }
     } catch {
-      window.localStorage.removeItem("event-florist-current-user");
+      // The stored account was unreadable; drop it without letting a blocked
+      // storage API interrupt the sign-in flow.
+      try { window.localStorage.removeItem("event-florist-current-user"); } catch { /* storage unavailable */ }
     }
   }, []);
-  useEffect(() => { window.localStorage.setItem("event-florist-prototype-role", role); }, [role]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("event-florist-prototype-role", role);
+    } catch {
+      // Ignore storage failures; the simulated role still applies for this session.
+    }
+  }, [role]);
   useEffect(() => { if (!toast) return; const timer = window.setTimeout(() => setToast(""), 3400); return () => window.clearTimeout(timer); }, [toast]);
   useEffect(() => { setPage(0); setFilter("All"); setQuery(""); }, [section]);
   useEffect(() => { setPage(0); }, [query, filter]);
 
   const notify = (message: string, error = false) => { setToast(message); setToastError(error); };
   const signOut = () => {
-    window.localStorage.removeItem("event-florist-current-user");
-    window.localStorage.removeItem("event-florist-prototype-role");
+    try {
+      window.localStorage.removeItem("event-florist-current-user");
+      window.localStorage.removeItem("event-florist-prototype-role");
+    } catch {
+      // Storage may be blocked; signing out still clears the current session state.
+    }
     router.replace("/");
   };
   const activeProducts = data.products.filter((p) => p.active);
@@ -338,12 +350,17 @@ export default function AppShell({ section, productId, orderId }: { section: str
   const exportCsv = (rows: string[][], name: string) => {
     const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\r\n");
     const link = document.createElement("a");
-    link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    link.href = url;
     link.download = `${name}-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click(); URL.revokeObjectURL(link.href); notify(`${name} report exported as CSV.`);
+    link.click();
+    // Revoke on the next tick so Safari/Firefox finish the download first.
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    notify(`${name} report exported as CSV.`);
   };
 
   const currentTitle = section === "dashboard" ? `Good morning, ${account.name.split(" ")[0]}` : pageTitles[section] || "Workspace";
+  const todayLabel = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(new Date()).toUpperCase();
   const initials = account.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
   const detailProduct = section === "product-detail" ? data.products.find((product) => product.id === productId) : undefined;
   const detailOrder = section === "order-detail" ? data.orders.find((order) => order.id === orderId) : undefined;
@@ -386,7 +403,7 @@ export default function AppShell({ section, productId, orderId }: { section: str
   const dashboard = <div className="space-y-5">
     <div className="relative overflow-hidden rounded-2xl bg-plum-900 px-6 py-6 text-white sm:px-8 sm:py-7">
       <div className="pointer-events-none absolute -right-6 -top-20 h-60 w-60 rounded-full border border-white/10"/><div className="pointer-events-none absolute -right-1 top-4 h-40 w-40 rounded-full border border-white/10"/>
-      <div className="relative flex flex-col justify-between gap-5 md:flex-row md:items-center"><div><div className="mb-2 flex items-center gap-2 text-[10px] font-medium text-plum-200"><span className="h-1.5 w-1.5 rounded-full bg-[#a8c29d]"/>THURSDAY, NOVEMBER 6</div><h1 className="font-display text-[25px] font-medium">A beautiful day to get organized.</h1><p className="mt-2 max-w-[430px] text-[11px] leading-5 text-plum-100/80">Here’s your wholesale overview. You have {lowProducts.length + outProducts.length} items that may need a top-up.</p></div><div className="flex flex-wrap gap-2">{isAdmin && addButton("Add product", "product")}<Link href="/purchase-orders" className="inline-flex items-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-[11px] font-medium text-white hover:bg-white/10"><ClipboardList size={14}/>New purchase order</Link></div></div>
+      <div className="relative flex flex-col justify-between gap-5 md:flex-row md:items-center"><div><div className="mb-2 flex items-center gap-2 text-[10px] font-medium text-plum-200"><span className="h-1.5 w-1.5 rounded-full bg-[#a8c29d]"/>{todayLabel}</div><h1 className="font-display text-[25px] font-medium">A beautiful day to get organized.</h1><p className="mt-2 max-w-[430px] text-[11px] leading-5 text-plum-100/80">Here’s your wholesale overview. You have {lowProducts.length + outProducts.length} items that may need a top-up.</p></div><div className="flex flex-wrap gap-2">{isAdmin && addButton("Add product", "product")}<Link href="/purchase-orders" className="inline-flex items-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-[11px] font-medium text-white hover:bg-white/10"><ClipboardList size={14}/>New purchase order</Link></div></div>
     </div>
     <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
       {[
@@ -431,7 +448,7 @@ export default function AppShell({ section, productId, orderId }: { section: str
           <td className="text-right"><button onClick={() => setDialog({ mode: "order", productId: p.id, supplierId: p.supplier })} className="rounded-lg bg-plum-50 px-3 py-2 text-[10px] font-medium text-plum-700 hover:bg-plum-100">Create PO</button></td>
         </tr>)}</tbody>
       </table>
-      {lowProducts.length + outProducts.length === 0 && <EmptyState title="No stock alerts" detail="Your active products are above their minimum levels."/ >}
+      {lowProducts.length + outProducts.length === 0 && <EmptyState title="No stock alerts" detail="Your active products are above their minimum levels."/>}
       </div>
     </Card>
   </div>;
@@ -468,7 +485,7 @@ export default function AppShell({ section, productId, orderId }: { section: str
           {isAdmin && ["DRAFT", "PENDING", "APPROVED", "ORDERED"].includes(order.status) && <button onClick={() => changeOrder(order.id, "CANCELLED")} className="rounded-md px-2 py-1.5 text-[9px] text-red-600 hover:bg-red-50">Cancel</button>}
         </div></td>
       </tr>)}</tbody>
-    </table>{filteredOrders.length === 0 && <EmptyState title="No purchase orders found" detail="Try another search or create a new order."/ >}</div></Card>
+    </table>{filteredOrders.length === 0 && <EmptyState title="No purchase orders found" detail="Try another search or create a new order."/>}</div></Card>
   </div>;
 
   const receivingPage = <div><SectionTitle title="Goods receiving" detail="Confirm deliveries against open purchase orders. Partial receipts are supported."/><div className="mb-4 rounded-xl border border-sage-100 bg-sage-50 px-4 py-3 text-[10px] text-sage-700"><ShieldCheck size={15} className="mr-2 inline"/>Stock updates only when a receipt is confirmed. Over-receiving and cancelled orders are blocked.</div><div className="space-y-3">{data.orders.filter((order) => ["ORDERED", "PARTIALLY_RECEIVED"].includes(order.status)).map((order) => <Card key={order.id} className="p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><h3 className="text-[13px] font-semibold text-plum-700">{order.id}</h3><Badge tone={statusTone(order.status)}>{order.status.replaceAll("_", " ")}</Badge></div><p className="mt-1 text-[10px] text-stone-400">{supplierById(order.supplierId)?.name} · Expected {order.expected ? shortDate(order.expected) : "not scheduled"}</p></div><button onClick={() => setDialog({ mode: "receive", orderId: order.id })} className="btn-primary"><PackageCheck size={14}/>Receive goods</button></div><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[420px] text-left text-[10px]"><thead className="text-[9px] uppercase text-stone-400"><tr><th className="pb-2">Product</th><th className="pb-2">Ordered</th><th className="pb-2">Received</th><th className="pb-2">Outstanding</th></tr></thead><tbody>{order.lines.map((line) => <tr key={line.productId} className="border-t border-stone-100"><td className="py-2.5">{productById(line.productId)?.name}</td><td>{line.quantity}</td><td>{line.received}</td><td className="font-semibold">{line.quantity - line.received}</td></tr>)}</tbody></table></div></Card>)}{data.orders.filter((o) => ["ORDERED", "PARTIALLY_RECEIVED"].includes(o.status)).length === 0 && <Card><EmptyState title="Nothing to receive" detail="Orders marked as ordered will appear here."/></Card>}</div><Card className="mt-5 p-5"><SectionTitle title="Receipt history" detail="Goods received into inventory"/><ActivityList transactions={data.transactions.filter((t) => t.reason.includes("Goods received"))} productById={productById}/></Card></div>;
@@ -488,7 +505,7 @@ export default function AppShell({ section, productId, orderId }: { section: str
     <Card className="mt-4 p-5"><SectionTitle title="Order activity" detail="Supplier purchase history" action={<button onClick={() => exportCsv([["Order", "Supplier", "Status", "Date", "Total"], ...reportOrders.map((o) => [o.id, supplierById(o.supplierId)?.name || "", o.status, o.date, String(orderTotal(o.lines, o.tax, o.extra))])], "purchase-report")} className="btn-secondary"><ArrowDownToLine size={13}/>Export purchases</button>}/>
       <div className="overflow-x-auto"><table className="w-full min-w-[500px] text-left text-[10px]"><thead className="text-[9px] uppercase tracking-wider text-stone-400"><tr><th className="pb-2">Purchase order</th><th className="pb-2">Supplier</th><th className="pb-2">Date</th><th className="pb-2">Status</th><th className="pb-2 text-right">Total</th></tr></thead>
       <tbody>{reportOrders.map((o) => <tr key={o.id} className="border-t border-stone-100"><td className="py-3 font-semibold text-plum-700">{o.id}</td><td>{supplierById(o.supplierId)?.name}</td><td>{shortDate(o.date)}</td><td><Badge tone={statusTone(o.status)}>{o.status.replaceAll("_", " ")}</Badge></td><td className="text-right font-medium">{currency(orderTotal(o.lines, o.tax, o.extra))}</td></tr>)}</tbody>
-      </table>{reportOrders.length === 0 && <EmptyState title="No orders in this range" detail="Adjust the search or date range to see purchase activity."/ >}</div>
+      </table>{reportOrders.length === 0 && <EmptyState title="No orders in this range" detail="Adjust the search or date range to see purchase activity."/>}</div>
     </Card>
   </div>;
 
