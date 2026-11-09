@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import User from "../models/User";
 import { authenticateUser } from "../services/authService";
 import { env } from "../config/env";
+import { sessionCookieOptions } from "../config/session";
 import { loginSchema } from "../validators/schemas";
 import { ApiError } from "../utils/ApiError";
 import { asyncHandler } from "../utils/asyncHandler";
@@ -27,11 +28,7 @@ export const logout = asyncHandler(async (request, response) => {
   await new Promise<void>((resolve, reject) => {
     request.session.destroy((error) => error ? reject(error) : resolve());
   });
-  response.clearCookie("event-florist.sid", {
-    httpOnly: true,
-    sameSite: "strict",
-    secure: env.NODE_ENV === "production",
-  });
+  response.clearCookie("event-florist.sid", sessionCookieOptions);
   sendData(response, { message: "Signed out" });
 });
 
@@ -49,6 +46,13 @@ export const createFirstAdmin = async () => {
   const existing = await User.findOne({ role: "Administrator" });
   if (existing) return false;
   const passwordHash = await bcrypt.hash(password, 12);
-  await User.create({ name, email: email.toLowerCase(), passwordHash, role: "Administrator" });
+  try {
+    await User.create({ name, email: email.toLowerCase(), passwordHash, role: "Administrator" });
+  } catch (error) {
+    // Two instances starting at the same time can both pass the check above;
+    // the unique email index decides the winner, and the loser must not abort.
+    if (error && typeof error === "object" && "code" in error && error.code === 11000) return false;
+    throw error;
+  }
   return true;
 };

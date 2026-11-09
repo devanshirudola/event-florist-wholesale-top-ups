@@ -1,9 +1,9 @@
-import type { Request, RequestHandler, Response } from "express";
+import type { NextFunction, Request, RequestHandler, Response } from "express";
 
-type AsyncController = (request: Request, response: Response) => Promise<void>;
+type AsyncController = (request: Request, response: Response, next: NextFunction) => Promise<void>;
 
 export function asyncHandler(controller: AsyncController): RequestHandler {
   return (request, response, next) => {
-    void controller(request, response).catch(next);
+    void controller(request, response, next).catch(next);
   };
 }

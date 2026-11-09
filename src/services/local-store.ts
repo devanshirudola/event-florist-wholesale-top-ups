@@ -15,5 +15,10 @@ export function loadData(): AppData {
 
 export function saveData(data: AppData) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // Storage can be unavailable (private browsing, disabled cookies, or a full quota).
+    // The workspace keeps working in memory for the current session.
+  }
 }

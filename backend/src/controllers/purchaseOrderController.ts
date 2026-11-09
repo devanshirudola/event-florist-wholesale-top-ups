@@ -27,10 +27,6 @@ export const getPurchaseOrders = asyncHandler(async (request: Request, response:
     status: request.query.status,
     supplierId: request.query.supplierId,
   });
-  const validStatuses: OrderStatus[] = ["DRAFT", "PENDING", "APPROVED", "ORDERED", "PARTIALLY_RECEIVED", "RECEIVED", "CANCELLED"];
-  if (filters.status && !validStatuses.includes(filters.status as OrderStatus)) {
-    throw new ApiError(400, "VALIDATION_ERROR", "Invalid purchase order status filter");
-  }
   const result = await listPurchaseOrders({ ...query, ...filters });
   sendPage(response, result.data, query.page, query.limit, result.total);
 });
@@ -72,8 +68,11 @@ export const getReceipts = asyncHandler(async (request: Request, response: Respo
 export const postReceipt = asyncHandler(async (request: Request, response: Response) => {
   const input = receiveSchema.parse(request.body);
   const key = request.get("Idempotency-Key");
-  if (!key || key.length < 8 || key.length > 128 || /\s/.test(key)) {
+  if (!key) {
     throw new ApiError(400, "IDEMPOTENCY_KEY_REQUIRED", "Provide a unique Idempotency-Key header for this receipt");
+  }
+  if (key.length < 8 || key.length > 128 || /\s/.test(key)) {
+    throw new ApiError(400, "IDEMPOTENCY_KEY_INVALID", "The Idempotency-Key header must be 8 to 128 characters without whitespace");
   }
   const result = await receivePurchaseOrder(pathParam(request, "id"), input, request.authUser!.id, key);
   sendData(response, result, result.replayed ? 200 : 201);

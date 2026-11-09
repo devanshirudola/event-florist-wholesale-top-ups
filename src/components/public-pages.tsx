@@ -102,8 +102,12 @@ function AuthPage({ page }: { page: "login" | "register" }) {
   const registerForm = useForm<RegisterValues>({ resolver: zodResolver(registerSchema), defaultValues: { name: "", email: "", company: "", password: "", confirmPassword: "", terms: false } });
 
   const finishSignIn = (email: string, name: string, role: Role, company?: string) => {
-    window.localStorage.setItem("event-florist-prototype-role", role);
-    window.localStorage.setItem("event-florist-current-user", JSON.stringify({ name, email, company: company || "" }));
+    try {
+      window.localStorage.setItem("event-florist-prototype-role", role);
+      window.localStorage.setItem("event-florist-current-user", JSON.stringify({ name, email, company: company || "" }));
+    } catch {
+      // Storage may be blocked (private browsing); the demo still opens.
+    }
     setNotice("Opening your local demo workspace…");
     window.setTimeout(() => router.push("/dashboard"), 300);
   };

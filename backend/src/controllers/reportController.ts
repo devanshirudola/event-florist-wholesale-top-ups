@@ -3,7 +3,7 @@ import PurchaseOrder from "../models/PurchaseOrder";
 import Supplier from "../models/Supplier";
 import { listInventory } from "../services/inventoryService";
 import { asyncHandler } from "../utils/asyncHandler";
-import { sendData, sendPage } from "../utils/response";
+import { sendPage } from "../utils/response";
 import { reportQuerySchema } from "../validators/schemas";
 
 export const getInventoryReport = asyncHandler(async (request: Request, response: Response) => {
@@ -31,6 +31,10 @@ export const getPurchaseReport = asyncHandler(async (request: Request, response:
       ...(filters.from ? { $gte: filters.from } : {}),
       ...(filters.to ? { $lte: new Date(filters.to.getTime() + 86_399_999) } : {}),
     };
+  }
+  if (query.search) {
+    const search = new RegExp(query.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+    match.$or = [{ orderNumber: search }, { supplierName: search }];
   }
   const [data, total] = await Promise.all([
     PurchaseOrder.find(match).sort({ orderDate: -1 }).skip((query.page - 1) * query.limit).limit(query.limit).lean(),
@@ -84,11 +88,4 @@ export const getSupplierReport = asyncHandler(async (request: Request, response:
     Supplier.countDocuments(search),
   ]);
   sendPage(response, data, query.page, query.limit, total);
-});
-
-export const getPurchasesOverview = asyncHandler(async (_request: Request, response: Response) => {
-  const [result] = await PurchaseOrder.aggregate([
-    { $group: { _id: null, orderCount: { $sum: 1 }, purchasingValue: { $sum: "$totalAmount" } } },
-  ]);
-  sendData(response, { orderCount: result?.orderCount || 0, purchasingValue: result?.purchasingValue || 0 });
 });
