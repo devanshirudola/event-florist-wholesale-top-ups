@@ -1,20 +1,43 @@
 # Event Florist Wholesale Top-Ups
 
-A frontend-only internal workspace for floral inventory, supplier management, wholesale purchasing, goods receiving, and reports.
+An internal workspace for floral inventory, suppliers, wholesale purchasing, goods receiving, and operational reports. The existing Next.js frontend remains at the repository root; the production-oriented Express/MongoDB API is in `backend/`.
 
 ## Run locally
 
+Requirements: Node.js 20+ and MongoDB running as a replica set (transactions are used for inventory and receipt writes).
+
+1. Copy `backend/.env.example` to `backend/.env`. Set a unique `SESSION_SECRET` (at least 32 characters), `MONGODB_URI`, and the first administrator's name, email, and password.
+2. Install and seed the API:
+
+   ```bash
+   npm install --prefix backend
+   npm run seed --prefix backend
+   npm run dev --prefix backend
+   ```
+
+3. In a separate terminal, run the existing frontend:
+
+   ```bash
+   npm install
+   npm run dev
+   ```
+
+The frontend is served at [http://localhost:3000](http://localhost:3000); the API is served at [http://localhost:4000/api/v1](http://localhost:4000/api/v1). The frontend prototype has not been switched from its local-storage adapter to this API.
+
+## Backend commands
+
 ```bash
-npm install
-npm run dev
+npm run build --prefix backend
+npm test --prefix backend
+npm start --prefix backend
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Create a production build with `npm run build`, then serve it with `npm start`.
+See [docs/API.md](./docs/API.md) for routes and response formats and [docs/DATABASE.md](./docs/DATABASE.md) for collections, indexes, and MongoDB transaction requirements.
 
-## Prototype notes
+## Security and operations
 
-- Sample data and user role simulation are stored in browser `localStorage`.
-- Purchase orders, stock adjustments, and receipts run locally in the browser; there is no API or database connection.
-- Administrator and Staff roles demonstrate UI affordances only and are not security controls.
-- The data model and local store are isolated in `src/types` and `src/services` to support a future REST API adapter.
-- The public landing page and login/register forms are demo-only. Registration saves a local profile, but passwords are never saved and login is not real authentication.
+- Login uses bcrypt password hashes and rate limiting. Sessions are stored in MongoDB and sent in an HTTP-only, same-site cookie.
+- Administrator and Staff permissions are checked in API middleware and services; frontend button visibility is not an authorization control.
+- Never commit `backend/.env` or use the example credentials outside local development.
+- Purchase-order prices are copied from the supplier-specific product price on the server. Stock changes are written as immutable inventory transactions.
+- Receiving requires an `Idempotency-Key` header and commits the receipt, purchase-order quantities, stock updates, and inventory transactions atomically.
