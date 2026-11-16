@@ -227,7 +227,15 @@ export async function listSuppliers(query: PageQuery) {
     Supplier.find(filter).sort({ companyName: 1 }).skip((query.page - 1) * query.limit).limit(query.limit).lean(),
     Supplier.countDocuments(filter),
   ]);
-  return { data, total };
+  const links = await ProductSupplier.find({ supplierId: { $in: data.map((supplier) => supplier._id) } })
+    .select("supplierId productId unitCost leadTimeDays isPreferred").lean();
+  return {
+    data: data.map((supplier) => ({
+      ...supplier,
+      products: links.filter((link) => link.supplierId.toString() === supplier._id.toString()),
+    })),
+    total,
+  };
 }
 
 export async function getSupplier(supplierId: string) {

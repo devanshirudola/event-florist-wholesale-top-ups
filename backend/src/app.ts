@@ -32,9 +32,12 @@ export function createApp() {
   if (env.NODE_ENV === "production") app.set("trust proxy", 1);
   app.disable("x-powered-by");
   app.use(helmet());
+  const deploymentOrigins = [process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL, process.env.VERCEL_PROJECT_PRODUCTION_URL]
+    .filter((host): host is string => Boolean(host))
+    .map((host) => `https://${host}`);
   app.use(cors({
     origin(origin, callback) {
-      if (!origin || frontendOrigins.includes(origin)) {
+      if (!origin || frontendOrigins.includes(origin) || origin === env.FRONTEND_ORIGIN || deploymentOrigins.includes(origin)) {
         callback(null, true);
         return;
       }

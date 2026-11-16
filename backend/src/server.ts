@@ -19,7 +19,7 @@ async function start() {
     console.info(`Received ${signal}; shutting down`);
     server.close((error) => {
       if (error) {
-        console.error("Failed to close the HTTP server cleanly", error);
+        console.error("Failed to close the HTTP server cleanly");
         process.exitCode = 1;
       }
       void disconnectDatabase();
@@ -32,8 +32,9 @@ async function start() {
 // On Vercel the platform invokes the app exported from `src/app.ts` directly,
 // so this file only bootstraps a long-running server (Render, Railway, Docker).
 if (!process.env.VERCEL) {
-  void start().catch((error: unknown) => {
-    console.error("Failed to start Event Florist API", error);
+  void start().catch(() => {
+    // Startup errors can include MongoDB connection details; keep logs credential-safe.
+    console.error("Failed to start Event Florist API; details were withheld to protect credentials");
     process.exitCode = 1;
   });
 }

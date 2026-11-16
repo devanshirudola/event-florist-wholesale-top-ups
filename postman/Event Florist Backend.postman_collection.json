@@ -1,0 +1,171 @@
+{
+  "info": {
+    "_postman_id": "cc3f81ce-2f4d-45a8-977a-a94909189913",
+    "name": "Event Florist Backend",
+    "description": "Local API requests for the Event Florist Wholesale Top-Ups backend. Sign in first; Postman keeps the session cookie in its cookie jar.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000" },
+    { "key": "adminEmail", "value": "" },
+    { "key": "adminPassword", "value": "" },
+    { "key": "productId", "value": "" },
+    { "key": "supplierId", "value": "" },
+    { "key": "purchaseOrderId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health"
+      }
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Log in",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login succeeded', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login"
+          }
+        },
+        {
+          "name": "Current user",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/auth/me"
+          }
+        },
+        {
+          "name": "Log out",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Workspace",
+      "item": [
+        {
+          "name": "Dashboard summary",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/dashboard/summary"
+          }
+        },
+        {
+          "name": "List products",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/products?page=1&limit=20"
+          }
+        },
+        {
+          "name": "List categories",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/categories?page=1&limit=20"
+          }
+        },
+        {
+          "name": "List suppliers",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/suppliers?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Inventory",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/inventory?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Low stock",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/inventory/low-stock?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Purchase orders",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/purchase-orders?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Inventory report",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/reports/inventory?page=1&limit=20"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inventory adjustment",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"quantityChange\": 1,\n  \"reason\": \"Postman API smoke test\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/v1/inventory/adjustments"
+      }
+    },
+    {
+      "name": "Create draft purchase order",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"supplierId\": \"{{supplierId}}\",\n  \"items\": [\n    { \"productId\": \"{{productId}}\", \"quantity\": 2 }\n  ],\n  \"tax\": 0,\n  \"additionalCharges\": 0,\n  \"notes\": \"Postman API smoke test\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/v1/purchase-orders"
+      }
+    },
+    {
+      "name": "Receive purchase order",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Idempotency-Key", "value": "{{$guid}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"items\": [\n    { \"productId\": \"{{productId}}\", \"quantity\": 1 }\n  ],\n  \"notes\": \"Postman receipt smoke test\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/api/v1/purchase-orders/{{purchaseOrderId}}/receive"
+      }
+    }
+  ]
+}

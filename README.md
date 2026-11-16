@@ -22,7 +22,13 @@ Requirements: Node.js 20+ and MongoDB running as a replica set (transactions are
    npm run dev
    ```
 
-The frontend is served at [http://localhost:3000](http://localhost:3000); the API is served at [http://localhost:4000/api/v1](http://localhost:4000/api/v1). The frontend prototype has not been switched from its local-storage adapter to this API.
+The frontend is served at [http://localhost:3000](http://localhost:3000) and reads and writes workspace data through `/api/v1`. During ordinary local Next.js development, requests to `/api` are proxied to the API at port 4000. Sign in with the administrator account configured for the seed command. User accounts are created by an administrator from Workspace settings; public self-registration is disabled.
+
+## Deploy to Vercel
+
+The root [`vercel.json`](./vercel.json) deploys the Next.js app and Express API as two Vercel services. Route `/api/*` to the backend; all other paths go to the app. The app calls the API through the same public domain, so there is no server-to-server binding in this setup. The backend CORS allowlist includes Vercel deployment and project domains for preview and production.
+
+In Vercel, select **Services** as the project framework, then configure these backend environment variables for each environment: `MONGODB_URI`, `SESSION_SECRET`, `ADMIN_NAME`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD`. Use a unique session secret with at least 32 characters. `FRONTEND_ORIGIN` defaults to localhost for local development; Vercel deployment domains are allowed from Vercel's runtime-provided domain variables. Keep database credentials and session secrets out of the repository.
 
 Frontend checks: `npm run lint`, `npm run typecheck`, and `npm run build`.
 

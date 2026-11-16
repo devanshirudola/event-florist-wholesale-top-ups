@@ -79,7 +79,8 @@ export const errorHandler: ErrorRequestHandler = (error, _request, response, nex
     return;
   }
 
-  console.error("Unhandled API error", error);
+  // Error objects from database drivers may include connection details.
+  console.error("Unhandled API error; details were withheld to protect credentials");
   response.status(500).json({
     success: false,
     error: { code: "INTERNAL_ERROR", message: "An unexpected server error occurred" },

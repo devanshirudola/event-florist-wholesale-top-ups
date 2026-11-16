@@ -11,7 +11,7 @@ export type Supplier = {
 export type OrderStatus = "DRAFT" | "PENDING" | "APPROVED" | "ORDERED" | "PARTIALLY_RECEIVED" | "RECEIVED" | "CANCELLED";
 export type OrderLine = { productId: string; quantity: number; received: number; cost: number };
 export type PurchaseOrder = {
-  id: string; supplierId: string; status: OrderStatus; date: string; expected: string;
+  id: string; apiId?: string; supplierId: string; status: OrderStatus; date: string; expected: string;
   lines: OrderLine[]; tax: number; extra: number; notes: string;
 };
 export type Transaction = { id: string; productId: string; change: number; before: number; after: number; reason: string; date: string };
