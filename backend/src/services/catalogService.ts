@@ -232,7 +232,7 @@ export async function listSuppliers(query: PageQuery) {
   return {
     data: data.map((supplier) => ({
       ...supplier,
-      products: links.filter((link) => link.supplierId.toString() === supplier._id.toString()),
+      products: links.filter((link) => link.supplierId.toString() === String(supplier._id)),
     })),
     total,
   };
