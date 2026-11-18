@@ -21,7 +21,7 @@ const databaseGuard: RequestHandler = (_request, _response, next) => {
   connectDatabase().then(
     () => next(),
     (error: unknown) => {
-      console.error("MongoDB connection failed", error);
+      console.error("MongoDB connection failed; API request returned 503");
       next(new ApiError(503, "DATABASE_UNAVAILABLE", "The database is temporarily unavailable"));
     },
   );
@@ -46,7 +46,7 @@ export function createApp() {
     credentials: true,
   }));
   app.use(express.json({ limit: "1mb" }));
-  app.use(session({
+  const sessionMiddleware = session({
     name: "event-florist.sid",
     secret: env.SESSION_SECRET,
     resave: false,
@@ -61,12 +61,15 @@ export function createApp() {
       ...sessionCookieOptions,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     },
-  }));
+  });
 
   app.get("/health", (_request, response) => {
     response.status(200).json({ success: true, data: { status: "ok" } });
   });
-  app.use("/api/v1", databaseGuard, apiRouter);
+  // Establish database readiness before touching the Mongo-backed session
+  // store. Otherwise a cold or unavailable database can leave session reads
+  // waiting before the API's structured 503 handler has a chance to run.
+  app.use("/api/v1", databaseGuard, sessionMiddleware, apiRouter);
   app.use((_request, _response, next) => {
     next(new ApiError(404, "ROUTE_NOT_FOUND", "API route was not found"));
   });

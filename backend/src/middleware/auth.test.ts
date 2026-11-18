@@ -94,7 +94,7 @@ describe("requireAuth", () => {
     expect(request.authUser).toBeUndefined();
   });
 
-  it("maps a failed user lookup to a 401 instead of a 500", async () => {
+  it("passes user lookup failures to the API error handler", async () => {
     findById.mockReturnValue({
       select: vi.fn().mockRejectedValue(new Error("connection lost")),
     });
@@ -103,8 +103,6 @@ describe("requireAuth", () => {
     requireAuth(makeRequest("u1"), makeResponse(), next);
     await flush();
 
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 401, code: "UNAUTHENTICATED" }),
-    );
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: "connection lost" }));
   });
 });

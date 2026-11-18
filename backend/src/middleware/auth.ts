@@ -15,7 +15,7 @@ export const requireAuth: RequestHandler = asyncHandler(async (request, response
   const userId = request.session.userId;
   if (!userId) throw new ApiError(401, "UNAUTHENTICATED", "Please sign in to continue");
 
-  const user = await User.findById(userId).select("name email role isActive").catch(() => null);
+  const user = await User.findById(userId).select("name email role isActive");
   if (!user || !user.isActive) {
     // The stored session is unusable: revoke it fully and drop the cookie so
     // the client stops resending a dead session id.

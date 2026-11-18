@@ -20,6 +20,11 @@ describe("API boundary", () => {
     expect(response.body).toEqual({ success: true, data: { status: "ok" } });
   });
 
+  it("does not add session cookies to the database-independent health check", async () => {
+    const response = await request(app).get("/health");
+    expect(response.headers["set-cookie"]).toBeUndefined();
+  });
+
   it("rejects protected API calls without a session", async () => {
     const response = await request(app).get("/api/v1/products");
     expect(response.status).toBe(401);

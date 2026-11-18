@@ -1,27 +1,48 @@
 import type { AppData, Product, PurchaseOrder, Supplier, Transaction } from "@/types";
 
 const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "/api/v1").replace(/\/$/, "");
+const REQUEST_TIMEOUT_MS = 20_000;
 type Row = Record<string, any>;
+type ApiEnvelope<T> = { data?: T; error?: { message?: string }; meta?: { pages: number } };
 const id = (value: any) => String(value?._id || value?.id || value || "");
 const date = (value: any) => value ? new Date(value).toISOString().slice(0, 10) : "";
 
-export async function api<T = any>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...options,
-    credentials: "include",
-    headers: { "Content-Type": "application/json", ...options.headers },
-  });
-  const body = await response.json().catch(() => ({}));
+async function request<T = any>(path: string, options: RequestInit = {}): Promise<ApiEnvelope<T>> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const onAbort = () => controller.abort();
+  options.signal?.addEventListener("abort", onAbort, { once: true });
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      ...options,
+      signal: controller.signal,
+      credentials: "include",
+      headers: { "Content-Type": "application/json", ...options.headers },
+    });
+  } catch {
+    if (controller.signal.aborted) {
+      throw new Error(options.signal?.aborted ? "Request was cancelled." : "The server took too long to respond. Please try again.");
+    }
+    throw new Error("Unable to reach the server. Check your connection and try again.");
+  } finally {
+    clearTimeout(timeout);
+    options.signal?.removeEventListener("abort", onAbort);
+  }
+  const body = await response.json().catch(() => ({})) as ApiEnvelope<T>;
   if (!response.ok) throw new Error(body?.error?.message || `Request failed (${response.status})`);
+  return body;
+}
+
+export async function api<T = any>(path: string, options: RequestInit = {}): Promise<T> {
+  const body = await request<T>(path, options);
   return body.data as T;
 }
 
 async function all<T>(path: string): Promise<T[]> {
   const result: T[] = [];
   for (let page = 1; ; page += 1) {
-    const response = await fetch(`${baseUrl}${path}${path.includes("?") ? "&" : "?"}page=${page}&limit=100`, { credentials: "include" });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body?.error?.message || `Request failed (${response.status})`);
+    const body = await request<T[]>(`${path}${path.includes("?") ? "&" : "?"}page=${page}&limit=100`);
     result.push(...(body.data || []));
     if (!body.meta || page >= body.meta.pages) return result;
   }
