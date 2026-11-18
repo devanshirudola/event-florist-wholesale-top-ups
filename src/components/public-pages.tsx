@@ -8,7 +8,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowRight, ArrowUpRight, Boxes, Check, ChevronRight, ClipboardCheck,
-  Flower2, Leaf, LockKeyhole, Mail, Package, ShieldCheck, Sprout, Truck,
+  Flower2, Leaf, LockKeyhole, Mail, Package, Sprout, Truck,
 } from "lucide-react";
 import { api } from "@/services/api";
 
@@ -16,8 +16,17 @@ const loginSchema = z.object({
   email: z.string().trim().email("Enter a valid work email."),
   password: z.string().min(1, "Enter your password."),
 });
+const registerSchema = z.object({
+  name: z.string().trim().min(2, "Enter your name.").max(120),
+  email: z.string().trim().email("Enter a valid email address.").max(254),
+  password: z.string().min(12, "Use at least 12 characters.").max(128),
+  confirmPassword: z.string(),
+}).refine((values) => values.password === values.confirmPassword, {
+  message: "Passwords do not match.", path: ["confirmPassword"],
+});
 
 type LoginValues = z.infer<typeof loginSchema>;
+type RegisterValues = z.infer<typeof registerSchema>;
 type PublicPageProps = { page: "landing" | "login" | "register" };
 
 function Brand({ inverse = false }: { inverse?: boolean }) {
@@ -38,7 +47,7 @@ function LandingPage() {
     <header className="mx-auto flex h-[76px] max-w-[1180px] items-center justify-between px-5 sm:px-8">
       <Brand/>
       <nav className="hidden items-center gap-8 text-[11px] font-medium text-stone-500 md:flex"><a href="#workflow" className="hover:text-plum-700">How it works</a><a href="#workspace" className="hover:text-plum-700">Workspace</a></nav>
-      <div className="flex items-center gap-2"><Link href="/login" className="rounded-lg px-3 py-2 text-[11px] font-semibold text-plum-800 hover:bg-plum-50">Log in</Link><Link href="/login" className="inline-flex items-center gap-2 rounded-lg bg-plum-900 px-3.5 py-2.5 text-[10px] font-semibold text-white transition hover:bg-plum-700">Sign in <ArrowRight size={13}/></Link></div>
+      <div className="flex items-center gap-2"><Link href="/login" className="rounded-lg px-3 py-2 text-[11px] font-semibold text-plum-800 hover:bg-plum-50">Log in</Link><Link href="/register" className="inline-flex items-center gap-2 rounded-lg bg-plum-900 px-3.5 py-2.5 text-[10px] font-semibold text-white transition hover:bg-plum-700">Create account <ArrowRight size={13}/></Link></div>
     </header>
 
     <section className="mx-auto grid max-w-[1180px] items-center gap-10 px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14 lg:grid-cols-[1.05fr_.95fr] lg:gap-16">
@@ -85,6 +94,7 @@ function AuthPage({ page }: { page: "login" | "register" }) {
   const [notice, setNotice] = useState("");
   const isRegister = page === "register";
   const loginForm = useForm<LoginValues>({ resolver: zodResolver(loginSchema), defaultValues: { email: "", password: "" } });
+  const registerForm = useForm<RegisterValues>({ resolver: zodResolver(registerSchema), defaultValues: { name: "", email: "", password: "", confirmPassword: "" } });
   const submitLogin = loginForm.handleSubmit(async (values) => {
     setNotice("");
     try {
@@ -94,8 +104,18 @@ function AuthPage({ page }: { page: "login" | "register" }) {
       setNotice(error instanceof Error ? error.message : "Unable to sign in.");
     }
   });
+  const submitRegister = registerForm.handleSubmit(async ({ name, email, password }) => {
+    setNotice("");
+    try {
+      await api("/auth/register", { method: "POST", body: JSON.stringify({ name, email, password }) });
+      router.replace("/dashboard");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Unable to create your account.");
+    }
+  });
 
   const loginErrors = loginForm.formState.errors;
+  const registerErrors = registerForm.formState.errors;
 
   return <main className="grid min-h-screen bg-white lg:grid-cols-[minmax(0,1fr)_minmax(380px,.82fr)]">
     <section className="flex min-h-screen flex-col px-5 py-6 sm:px-10 lg:px-14 xl:px-20">
@@ -103,11 +123,16 @@ function AuthPage({ page }: { page: "login" | "register" }) {
       <div className="mx-auto flex w-full max-w-[410px] flex-1 flex-col justify-center py-10">
         <div className="mb-6 grid h-11 w-11 place-items-center rounded-xl bg-plum-50 text-plum-700"><LockKeyhole size={19}/></div>
         <p className="text-[9px] font-semibold uppercase tracking-[.16em] text-plum-500">{isRegister ? "A more considered workflow" : "Your wholesale workspace"}</p>
-        <h1 className="mt-2 font-display text-[30px] leading-tight text-plum-900">{isRegister ? "Create your workspace" : "Welcome back"}</h1>
-        <p className="mt-2 text-[11px] leading-5 text-stone-500">{isRegister ? "Access is managed by your workspace administrator." : "Sign in with your Event Florist workspace account."}</p>
-        {isRegister && <div className="mt-7 rounded-xl border border-plum-100 bg-plum-50/70 p-3 text-[9px] leading-4 text-plum-700"><ShieldCheck size={14} className="mr-1.5 inline align-[-3px]"/>Self registration is disabled. Ask an administrator to create your account.</div>}
+        <h1 className="mt-2 font-display text-[30px] leading-tight text-plum-900">{isRegister ? "Create your account" : "Welcome back"}</h1>
+        <p className="mt-2 text-[11px] leading-5 text-stone-500">{isRegister ? "Create an account to access your Event Florist workspace." : "Sign in with your Event Florist workspace account."}</p>
 
-        {!isRegister && <form onSubmit={submitLogin} className="mt-5 space-y-3" noValidate>
+        {isRegister ? <form onSubmit={submitRegister} className="mt-5 space-y-3" noValidate>
+          <Field label="Full name" error={registerErrors.name?.message}><input {...registerForm.register("name")} autoComplete="name" placeholder="Your name" className="auth-field"/></Field>
+          <Field label="Email address" error={registerErrors.email?.message}><div className="relative"><Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"/><input {...registerForm.register("email")} type="email" autoComplete="email" placeholder="you@studio.com" className="auth-field pl-9"/></div></Field>
+          <Field label="Password" error={registerErrors.password?.message}><input {...registerForm.register("password")} type="password" autoComplete="new-password" placeholder="At least 12 characters" className="auth-field"/></Field>
+          <Field label="Confirm password" error={registerErrors.confirmPassword?.message}><input {...registerForm.register("confirmPassword")} type="password" autoComplete="new-password" placeholder="Enter your password again" className="auth-field"/></Field>
+          <button type="submit" className="mt-1 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-plum-900 text-[10px] font-semibold text-white transition hover:bg-plum-700">Create account <ArrowRight size={14}/></button>
+        </form> : <form onSubmit={submitLogin} className="mt-5 space-y-3" noValidate>
           <Field label="Work email" error={loginErrors.email?.message}><div className="relative"><Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"/><input {...loginForm.register("email")} type="email" autoComplete="email" placeholder="you@studio.com" className="auth-field pl-9"/></div></Field>
           <Field label="Password" error={loginErrors.password?.message}><input {...loginForm.register("password")} type="password" autoComplete="current-password" placeholder="Enter your password" className="auth-field"/></Field>
           <div className="flex justify-end"><span className="text-[9px] text-stone-400">Contact your administrator for password help.</span></div>

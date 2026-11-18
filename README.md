@@ -22,7 +22,7 @@ Requirements: Node.js 20+ and MongoDB running as a replica set (transactions are
    npm run dev
    ```
 
-The frontend is served at [http://localhost:3000](http://localhost:3000) and reads and writes workspace data through `/api/v1`. During ordinary local Next.js development, requests to `/api` are proxied to the API at port 4000. Sign in with the administrator account configured for the seed command. User accounts are created by an administrator from Workspace settings; public self-registration is disabled.
+The frontend is served at [http://localhost:3000](http://localhost:3000) and reads and writes workspace data through `/api/v1`. During ordinary local Next.js development, requests to `/api` are proxied to the API at port 4000. Sign in with the administrator account configured for the seed command, or create a Staff account from `/register`. New accounts can sign in immediately; administrator approval is not required.
 
 ## Deploy to Vercel
 
@@ -31,28 +31,6 @@ The root [`vercel.json`](./vercel.json) deploys the Next.js app and Express API 
 In Vercel, select **Services** as the project framework, then configure these backend environment variables for each environment: `MONGODB_URI`, `SESSION_SECRET`, `ADMIN_NAME`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD`. Use a unique session secret with at least 32 characters. `FRONTEND_ORIGIN` defaults to localhost for local development; Vercel deployment domains are allowed from Vercel's runtime-provided domain variables. Keep database credentials and session secrets out of the repository.
 
 Frontend checks: `npm run lint`, `npm run typecheck`, and `npm run build`.
-
-## Deploy to Vercel
-
-The repository is set up for two Vercel projects with no build settings to change:
-
-1. **Frontend** — import the repository as-is; Vercel detects the Next.js app at the root.
-2. **API** — create a second project from the same repository with **Root Directory** set to `backend`. Vercel detects the Express app exported from `src/app.ts` and serves every route (`/health`, `/api/v1/...`) from a single serverless function with the original request paths — no `api/` folder or `vercel.json` required.
-
-Environment variables for the API project:
-
-| Variable | Required | Notes |
-| --- | --- | --- |
-| `MONGODB_URI` | Yes | Transaction-capable cluster (e.g. MongoDB Atlas) |
-| `SESSION_SECRET` | Yes | Random string of at least 32 characters |
-| `FRONTEND_ORIGIN` | Yes | Comma-separated trusted origins, e.g. `https://my-app.vercel.app,http://localhost:3000` |
-| `SESSION_COOKIE_SAMESITE` | No | `strict` (default), `lax`, or `none` |
-| `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Seeding only | Used by `npm run seed`, not by the running API |
-
-- When the frontend and API share a registrable domain (both on `*.vercel.app`, or proxied under one custom domain), the default `strict` session cookie works. On separate domains set `SESSION_COOKIE_SAMESITE=none`; browsers accept that only together with a `Secure` cookie, which the API enables automatically in production.
-- Seed the production database once with `npm run seed --prefix backend` using the same `MONGODB_URI` and `ADMIN_*` values; the serverless entry point does not create the first administrator.
-- Long-running hosts (Render, Railway, Docker) keep using `npm run build --prefix backend && npm run start --prefix backend`.
-- Serverless limitation: login rate limiting counts per function instance, not globally.
 
 ## Backend commands
 

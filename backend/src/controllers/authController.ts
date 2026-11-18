@@ -4,7 +4,8 @@ import User from "../models/User";
 import { authenticateUser } from "../services/authService";
 import { env } from "../config/env";
 import { sessionCookieOptions } from "../config/session";
-import { loginSchema } from "../validators/schemas";
+import { createUserSchema, loginSchema } from "../validators/schemas";
+import { createStaffUser } from "../services/authService";
 import { ApiError } from "../utils/ApiError";
 import { asyncHandler } from "../utils/asyncHandler";
 import { sendData } from "../utils/response";
@@ -22,6 +23,30 @@ export const login = asyncHandler(async (request: Request, response: Response) =
   sendData(response, {
     user: { id: user.id, name: user.name, email: user.email, role: user.role },
   });
+});
+
+export const register = asyncHandler(async (request: Request, response: Response) => {
+  const input = createUserSchema.parse(request.body);
+  let user;
+  try {
+    user = await createStaffUser(input);
+  } catch (error) {
+    // The unique email index also protects simultaneous registration attempts.
+    if (error && typeof error === "object" && "code" in error && error.code === 11000) {
+      throw new ApiError(409, "EMAIL_IN_USE", "An account with this email already exists");
+    }
+    throw error;
+  }
+  await new Promise<void>((resolve, reject) => {
+    request.session.regenerate((error) => error ? reject(error) : resolve());
+  });
+  request.session.userId = user.id;
+  await new Promise<void>((resolve, reject) => {
+    request.session.save((error) => error ? reject(error) : resolve());
+  });
+  sendData(response, {
+    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+  }, 201);
 });
 
 export const logout = asyncHandler(async (request, response) => {
