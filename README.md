@@ -39,7 +39,7 @@ See [docs/API.md](./docs/API.md) for routes and response formats and [docs/DATAB
 
 ## Security and operations
 
-- Login and public Staff registration use bcrypt password hashes and rate limiting. Sessions are stored in MongoDB and sent in an HTTP-only cookie.
+- Login uses bcrypt password hashes and rate limiting. Sessions are stored in MongoDB and sent in an HTTP-only, same-site cookie.
 - Administrator and Staff permissions are checked in API middleware and services; frontend button visibility is not an authorization control.
 - Never commit `backend/.env` or use the example credentials outside local development.
 - Purchase-order prices are copied from the supplier-specific product price on the server. Stock changes are written as immutable inventory transactions.

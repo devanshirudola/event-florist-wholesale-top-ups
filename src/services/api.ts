@@ -1,4 +1,4 @@
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1").replace(/\/+$/, "");
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
 
 type Envelope<T> = { success: true; data: T; meta?: { page: number; limit: number; total: number; pages: number } };
 
@@ -21,7 +21,6 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export type ApiUser = { id: string; name: string; email: string; role: "Administrator" | "Staff" };
 export const signIn = (email: string, password: string) => api<{ user: ApiUser }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
-export const signUp = (name: string, email: string, password: string) => api<{ user: ApiUser }>("/auth/register", { method: "POST", body: JSON.stringify({ name, email, password }) });
 export const currentUser = () => api<{ user: ApiUser }>("/auth/me");
 export const signOut = () => api<{ message: string }>("/auth/logout", { method: "POST" });
 

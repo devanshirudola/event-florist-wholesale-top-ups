@@ -1,6 +1,6 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { login, logout, me, register } from "../controllers/authController";
+import { login, logout, me } from "../controllers/authController";
 import {
   deleteCategory,
   deleteProduct,
@@ -60,21 +60,7 @@ const loginLimiter = rateLimit({
   },
 });
 
-const registrationLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  limit: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (_request, response) => {
-    response.status(429).json({
-      success: false,
-      error: { code: "REGISTRATION_RATE_LIMITED", message: "Too many account creation attempts. Try again later." },
-    });
-  },
-});
-
 router.post("/auth/login", loginLimiter, login);
-router.post("/auth/register", registrationLimiter, register);
 router.use(requireAuth);
 router.post("/auth/logout", logout);
 router.get("/auth/me", me);

@@ -10,7 +10,7 @@ import {
   ArrowRight, ArrowUpRight, Boxes, Check, ChevronRight, ClipboardCheck,
   Flower2, Leaf, LockKeyhole, Mail, Package, ShieldCheck, Sprout, Truck,
 } from "lucide-react";
-import { signIn, signUp } from "@/services/api";
+import { signIn } from "@/services/api";
 
 const loginSchema = z.object({
   email: z.string().trim().email("Enter a valid work email."),
@@ -20,7 +20,8 @@ const loginSchema = z.object({
 const registerSchema = z.object({
   name: z.string().trim().min(2, "Enter your full name."),
   email: z.string().trim().email("Enter a valid work email."),
-  password: z.string().min(12, "Use at least 12 characters.").max(128, "Password must be 128 characters or fewer."),
+  company: z.string().trim().min(2, "Enter your business name."),
+  password: z.string().min(8, "Use at least 8 characters."),
   confirmPassword: z.string().min(1, "Confirm your password."),
   terms: z.boolean().refine(Boolean, "Please agree to continue."),
 }).refine((value) => value.password === value.confirmPassword, {
@@ -81,7 +82,7 @@ function AuthPage({ page }: { page: "login" | "register" }) {
   const [notice, setNotice] = useState("");
   const isRegister = page === "register";
   const loginForm = useForm<LoginValues>({ resolver: zodResolver(loginSchema), defaultValues: { email: "", password: "" } });
-  const registerForm = useForm<RegisterValues>({ resolver: zodResolver(registerSchema), defaultValues: { name: "", email: "", password: "", confirmPassword: "", terms: false } });
+  const registerForm = useForm<RegisterValues>({ resolver: zodResolver(registerSchema), defaultValues: { name: "", email: "", company: "", password: "", confirmPassword: "", terms: false } });
 
   const submitLogin = loginForm.handleSubmit(async (values) => {
     setNotice("");
@@ -95,16 +96,8 @@ function AuthPage({ page }: { page: "login" | "register" }) {
     }
   });
 
-  const submitRegister = registerForm.handleSubmit(async (values) => {
-    setNotice("");
-    try {
-      const result = await signUp(values.name, values.email, values.password);
-      setNotice(`Account created for ${result.user.name}. Opening your workspace…`);
-      router.replace("/dashboard");
-      router.refresh();
-    } catch (error) {
-      registerForm.setError("root", { message: error instanceof Error ? error.message : "Could not create your account." });
-    }
+  const submitRegister = registerForm.handleSubmit(() => {
+    setNotice("Self registration is disabled. Ask your workspace administrator to create your account, then sign in here.");
   });
 
   const loginErrors = loginForm.formState.errors;
@@ -116,24 +109,23 @@ function AuthPage({ page }: { page: "login" | "register" }) {
       <div className="mx-auto flex w-full max-w-[410px] flex-1 flex-col justify-center py-10">
         <div className="mb-6 grid h-11 w-11 place-items-center rounded-xl bg-plum-50 text-plum-700"><LockKeyhole size={19}/></div>
         <p className="text-[9px] font-semibold uppercase tracking-[.16em] text-plum-500">{isRegister ? "A more considered workflow" : "Your wholesale workspace"}</p>
-        <h1 className="mt-2 font-display text-[30px] leading-tight text-plum-900">{isRegister ? "Create your account" : "Welcome back"}</h1>
-        <p className="mt-2 text-[11px] leading-5 text-stone-500">{isRegister ? "Create a Staff account to access the Event Florist workspace." : "Sign in to pick up where your studio left off."}</p>
-        <div className="mt-7 rounded-xl border border-plum-100 bg-plum-50/70 p-3 text-[9px] leading-4 text-plum-700"><ShieldCheck size={14} className="mr-1.5 inline align-[-3px]"/>{isRegister ? "Your account is created securely and signed in automatically." : "Your credentials are verified by the Event Florist API."}</div>
+        <h1 className="mt-2 font-display text-[30px] leading-tight text-plum-900">{isRegister ? "Create your workspace" : "Welcome back"}</h1>
+        <p className="mt-2 text-[11px] leading-5 text-stone-500">{isRegister ? "Accounts are created by your workspace administrator." : "Sign in to pick up where your studio left off."}</p>
+        <div className="mt-7 rounded-xl border border-plum-100 bg-plum-50/70 p-3 text-[9px] leading-4 text-plum-700"><ShieldCheck size={14} className="mr-1.5 inline align-[-3px]"/>{isRegister ? "Public self registration is disabled for this workspace." : "Your credentials are verified by the Event Florist API."}</div>
 
         {isRegister ? <form onSubmit={submitRegister} className="mt-5 space-y-3" noValidate>
           <Field label="Full name" error={registerErrors.name?.message}><input {...registerForm.register("name")} autoComplete="name" placeholder="Your name" className="auth-field"/></Field>
           <Field label="Work email" error={registerErrors.email?.message}><input {...registerForm.register("email")} type="email" autoComplete="email" placeholder="you@studio.com" className="auth-field"/></Field>
-          <div className="grid gap-3 sm:grid-cols-2"><Field label="Password (12+ characters)" error={registerErrors.password?.message}><input {...registerForm.register("password")} type="password" autoComplete="new-password" placeholder="At least 12 characters" className="auth-field"/></Field><Field label="Confirm password" error={registerErrors.confirmPassword?.message}><input {...registerForm.register("confirmPassword")} type="password" autoComplete="new-password" placeholder="Re-enter password" className="auth-field"/></Field></div>
-          <label className="flex items-start gap-2 pt-1 text-[9px] leading-4 text-stone-500"><input type="checkbox" {...registerForm.register("terms")} className="mt-0.5 accent-[#39263e]"/>I agree to create a Staff account for this workspace.</label>
+          <Field label="Business name" error={registerErrors.company?.message}><input {...registerForm.register("company")} autoComplete="organization" placeholder="Your floral studio" className="auth-field"/></Field>
+          <div className="grid gap-3 sm:grid-cols-2"><Field label="Password" error={registerErrors.password?.message}><input {...registerForm.register("password")} type="password" autoComplete="new-password" placeholder="At least 8 characters" className="auth-field"/></Field><Field label="Confirm password" error={registerErrors.confirmPassword?.message}><input {...registerForm.register("confirmPassword")} type="password" autoComplete="new-password" placeholder="Re-enter password" className="auth-field"/></Field></div>
+          <label className="flex items-start gap-2 pt-1 text-[9px] leading-4 text-stone-500"><input type="checkbox" {...registerForm.register("terms")} className="mt-0.5 accent-[#39263e]"/>I understand that accounts are created by a workspace administrator.</label>
           {registerErrors.terms && <p className="text-[9px] text-red-600">{registerErrors.terms.message}</p>}
-          {registerErrors.root?.message && <p role="alert" className="text-[10px] text-red-600">{registerErrors.root.message}</p>}
-          <button type="submit" disabled={registerForm.formState.isSubmitting} className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-plum-900 text-[10px] font-semibold text-white transition hover:bg-plum-700 disabled:opacity-60">{registerForm.formState.isSubmitting ? "Creating account…" : "Create account"} <ArrowRight size={14}/></button>
+          <button type="submit" className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-plum-900 text-[10px] font-semibold text-white transition hover:bg-plum-700">Request account access <ArrowRight size={14}/></button>
         </form> : <form onSubmit={submitLogin} className="mt-5 space-y-3" noValidate>
           <Field label="Work email" error={loginErrors.email?.message}><div className="relative"><Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"/><input {...loginForm.register("email")} type="email" autoComplete="email" placeholder="you@studio.com" className="auth-field pl-9"/></div></Field>
           <Field label="Password" error={loginErrors.password?.message}><input {...loginForm.register("password")} type="password" autoComplete="current-password" placeholder="Enter your password" className="auth-field"/></Field>
-          {loginErrors.root?.message && <p role="alert" className="text-[10px] text-red-600">{loginErrors.root.message}</p>}
           <div className="flex justify-end"><button type="button" onClick={() => setNotice("Password recovery is not currently available.")} className="text-[9px] font-medium text-plum-700 hover:underline">Forgot password?</button></div>
-          <button type="submit" disabled={loginForm.formState.isSubmitting} className="mt-1 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-plum-900 text-[10px] font-semibold text-white transition hover:bg-plum-700 disabled:opacity-60">{loginForm.formState.isSubmitting ? "Signing in…" : "Log in to workspace"} <ArrowRight size={14}/></button>
+          <button type="submit" className="mt-1 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-plum-900 text-[10px] font-semibold text-white transition hover:bg-plum-700">Log in to workspace <ArrowRight size={14}/></button>
         </form>}
 
         {notice && <p role="status" className="mt-3 rounded-lg bg-sage-50 px-3 py-2 text-[9px] text-sage-700">{notice}</p>}
