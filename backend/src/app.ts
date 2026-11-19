@@ -39,7 +39,7 @@ export function createApp() {
     cookie: {
       httpOnly: true,
       secure: env.NODE_ENV === "production",
-      sameSite: env.SESSION_COOKIE_SAMESITE ?? (env.NODE_ENV === "production" ? "none" : "strict"),
+      sameSite: env.NODE_ENV === "production" ? "none" : "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     },
   }));
