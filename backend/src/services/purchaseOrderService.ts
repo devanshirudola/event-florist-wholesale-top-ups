@@ -23,10 +23,6 @@ type OrderInput = {
   notes: string;
 };
 
-function escapedSearch(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 async function nextNumber(name: string, prefix: string, session: ClientSession) {
   const counter = await Counter.findOneAndUpdate(
     { _id: name },
@@ -139,7 +135,7 @@ export async function updateDraftPurchaseOrder(
       ...totals,
       tax: input.tax,
       additionalCharges: input.additionalCharges,
-      expectedDeliveryDate: input.expectedDeliveryDate ?? null,
+      expectedDeliveryDate: input.expectedDeliveryDate,
       notes: input.notes,
     }, $inc: { __v: 1 } },
     { runValidators: true },
@@ -174,12 +170,7 @@ export async function transitionPurchaseOrder(
 }
 
 export async function listReceipts(query: PageQuery & { purchaseOrderId?: string }) {
-  const filter: Record<string, unknown> = {};
-  if (query.purchaseOrderId) filter.purchaseOrderId = query.purchaseOrderId;
-  if (query.search) {
-    const search = new RegExp(escapedSearch(query.search), "i");
-    filter.$or = [{ receiptNumber: search }, { "items.productName": search }];
-  }
+  const filter = query.purchaseOrderId ? { purchaseOrderId: query.purchaseOrderId } : {};
   const [data, total] = await Promise.all([
     GoodsReceipt.find(filter).populate("supplierId", "name companyName").populate("receivedBy", "name email")
       .sort({ receivedAt: -1 }).skip((query.page - 1) * query.limit).limit(query.limit).lean(),

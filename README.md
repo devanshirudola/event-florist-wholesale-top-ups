@@ -7,7 +7,7 @@ An internal workspace for floral inventory, suppliers, wholesale purchasing, goo
 Requirements: Node.js 20+ and MongoDB running as a replica set (transactions are used for inventory and receipt writes).
 
 1. Copy `backend/.env.example` to `backend/.env`. Set a unique `SESSION_SECRET` (at least 32 characters), `MONGODB_URI`, and the first administrator's name, email, and password.
-2. Install and seed the API:
+2. Install and create the initial administrator account (the seed command does not add catalog or activity records):
 
    ```bash
    npm install --prefix backend
@@ -18,25 +18,19 @@ Requirements: Node.js 20+ and MongoDB running as a replica set (transactions are
 3. In a separate terminal, run the existing frontend:
 
    ```bash
+   Copy-Item .env.local.example .env.local
    npm install
    npm run dev
    ```
 
-The frontend is served at [http://localhost:3000](http://localhost:3000) and reads and writes workspace data through `/api/v1`. During ordinary local Next.js development, requests to `/api` are proxied to the API at port 4000. Sign in with the administrator account configured for the seed command, or create a Staff account from `/register`. New accounts can sign in immediately; administrator approval is not required.
+   For a deployed frontend, set `NEXT_PUBLIC_API_URL` to the deployed Express API base URL ending in `/api/v1`; configure the API's `FRONTEND_ORIGIN` to the exact frontend origin.
 
-## Deploy to Vercel
-
-The root [`vercel.json`](./vercel.json) deploys the Next.js app and Express API as two Vercel services. Route `/api/*` to the backend; all other paths go to the app. The app calls the API through the same public domain, so there is no server-to-server binding in this setup. The backend CORS allowlist includes Vercel deployment and project domains for preview and production.
-
-In Vercel, select **Services** as the project framework, then configure these backend environment variables for each environment: `MONGODB_URI`, `SESSION_SECRET`, `ADMIN_NAME`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD`. Use a unique session secret with at least 32 characters. `FRONTEND_ORIGIN` defaults to localhost for local development; Vercel deployment domains are allowed from Vercel's runtime-provided domain variables. Keep database credentials and session secrets out of the repository.
-
-Frontend checks: `npm run lint`, `npm run typecheck`, and `npm run build`.
+The frontend is served at [http://localhost:3000](http://localhost:3000); the API is served at [http://localhost:4000/api/v1](http://localhost:4000/api/v1). Set `NEXT_PUBLIC_API_URL` in `.env.local` to the API base URL (see `.env.local.example`). The frontend uses the API's cookie session and credentials are sent with requests. Postman is useful for exercising the same endpoints during development; the browser calls the Express API directly.
 
 ## Backend commands
 
 ```bash
 npm run build --prefix backend
-npm run typecheck --prefix backend
 npm test --prefix backend
 npm start --prefix backend
 ```

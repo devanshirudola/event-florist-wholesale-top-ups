@@ -1,26 +1,18 @@
 import type { RequestHandler } from "express";
 import User from "../models/User";
-import { sessionCookieOptions } from "../config/session";
 import type { UserRole } from "../types";
 import { ApiError } from "../utils/ApiError";
 import { asyncHandler } from "../utils/asyncHandler";
 
-function destroySession(request: Parameters<RequestHandler>[0]): Promise<void> {
-  return new Promise((resolve) => {
-    request.session.destroy(() => resolve());
-  });
-}
-
-export const requireAuth: RequestHandler = asyncHandler(async (request, response, next) => {
+export const requireAuth: RequestHandler = asyncHandler(async (request, _response) => {
   const userId = request.session.userId;
   if (!userId) throw new ApiError(401, "UNAUTHENTICATED", "Please sign in to continue");
 
   const user = await User.findById(userId).select("name email role isActive");
   if (!user || !user.isActive) {
-    // The stored session is unusable: revoke it fully and drop the cookie so
-    // the client stops resending a dead session id.
-    await destroySession(request);
-    response.clearCookie("event-florist.sid", sessionCookieOptions);
+    request.session.destroy((error) => {
+      if (error) console.error("Failed to clear an inactive user session", error);
+    });
     throw new ApiError(401, "UNAUTHENTICATED", "Please sign in to continue");
   }
 
@@ -30,9 +22,6 @@ export const requireAuth: RequestHandler = asyncHandler(async (request, response
     email: user.email,
     role: user.role as UserRole,
   };
-  // Without this call the request would never reach the route handler and
-  // every authenticated request would hang forever.
-  next();
 });
 
 export function requireRole(...roles: UserRole[]): RequestHandler {
