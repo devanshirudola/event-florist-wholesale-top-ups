@@ -39,7 +39,9 @@ export async function listLowStock(query: PageQuery) {
 }
 
 export async function listTransactions(query: PageQuery & { productId?: string }) {
-  const filter = query.productId ? { productId: query.productId } : {};
+  const filter: Record<string, unknown> = {};
+  if (query.productId) filter.productId = query.productId;
+  if (query.search) filter.reason = new RegExp(escapedSearch(query.search), "i");
   const [data, total] = await Promise.all([
     InventoryTransaction.find(filter)
       .populate("productId", "name sku unit")

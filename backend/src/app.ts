@@ -1,22 +1,43 @@
 import "dotenv/config";
 import cors from "cors";
-import express from "express";
+import express, { type RequestHandler } from "express";
 import session from "express-session";
 import helmet from "helmet";
 import MongoStore from "connect-mongo";
-import { env } from "./config/env";
+import { connectDatabase } from "./config/database";
+import { env, frontendOrigins } from "./config/env";
+import { sessionCookieOptions } from "./config/session";
 import { errorHandler } from "./middleware/errorHandler";
 import apiRouter from "./routes/api";
 import { ApiError } from "./utils/ApiError";
+
+// Requests must not reach the API routes before Mongo is ready. Memoised by
+// connectDatabase so this costs nothing on a warm instance.
+const databaseGuard: RequestHandler = (_request, _response, next) => {
+  if (env.NODE_ENV === "test") {
+    next();
+    return;
+  }
+  connectDatabase().then(
+    () => next(),
+    (error: unknown) => {
+      console.error("MongoDB connection failed; API request returned 503");
+      next(new ApiError(503, "DATABASE_UNAVAILABLE", "The database is temporarily unavailable"));
+    },
+  );
+};
 
 export function createApp() {
   const app = express();
   if (env.NODE_ENV === "production") app.set("trust proxy", 1);
   app.disable("x-powered-by");
   app.use(helmet());
+  const deploymentOrigins = [process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL, process.env.VERCEL_PROJECT_PRODUCTION_URL]
+    .filter((host): host is string => Boolean(host))
+    .map((host) => `https://${host}`);
   app.use(cors({
     origin(origin, callback) {
-      if (!origin || origin === env.FRONTEND_ORIGIN) {
+      if (!origin || frontendOrigins.includes(origin) || origin === env.FRONTEND_ORIGIN || deploymentOrigins.includes(origin)) {
         callback(null, true);
         return;
       }
@@ -25,7 +46,7 @@ export function createApp() {
     credentials: true,
   }));
   app.use(express.json({ limit: "1mb" }));
-  app.use(session({
+  const sessionMiddleware = session({
     name: "event-florist.sid",
     secret: env.SESSION_SECRET,
     resave: false,
@@ -37,20 +58,28 @@ export function createApp() {
       ttl: 7 * 24 * 60 * 60,
     }),
     cookie: {
-      httpOnly: true,
-      secure: env.NODE_ENV === "production",
-      sameSite: env.NODE_ENV === "production" ? "none" : "strict",
+      ...sessionCookieOptions,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     },
-  }));
+  });
 
   app.get("/health", (_request, response) => {
     response.status(200).json({ success: true, data: { status: "ok" } });
   });
-  app.use("/api/v1", apiRouter);
+  // Establish database readiness before touching the Mongo-backed session
+  // store. Otherwise a cold or unavailable database can leave session reads
+  // waiting before the API's structured 503 handler has a chance to run.
+  app.use("/api/v1", databaseGuard, sessionMiddleware, apiRouter);
   app.use((_request, _response, next) => {
     next(new ApiError(404, "ROUTE_NOT_FOUND", "API route was not found"));
   });
   app.use(errorHandler);
   return app;
 }
+
+// Vercel detects Express apps through a default-exported app instance in
+// `src/app.ts` (zero-configuration detection), so every route — including
+// `/health` — is served from a single function with the original request path.
+const app = createApp();
+
+export default app;

@@ -3,7 +3,9 @@ import bcrypt from "bcryptjs";
 import User from "../models/User";
 import { authenticateUser } from "../services/authService";
 import { env } from "../config/env";
-import { loginSchema } from "../validators/schemas";
+import { sessionCookieOptions } from "../config/session";
+import { createUserSchema, loginSchema } from "../validators/schemas";
+import { createStaffUser } from "../services/authService";
 import { ApiError } from "../utils/ApiError";
 import { asyncHandler } from "../utils/asyncHandler";
 import { sendData } from "../utils/response";
@@ -23,15 +25,35 @@ export const login = asyncHandler(async (request: Request, response: Response) =
   });
 });
 
+export const register = asyncHandler(async (request: Request, response: Response) => {
+  const input = createUserSchema.parse(request.body);
+  let user;
+  try {
+    user = await createStaffUser(input);
+  } catch (error) {
+    // The unique email index also protects simultaneous registration attempts.
+    if (error && typeof error === "object" && "code" in error && error.code === 11000) {
+      throw new ApiError(409, "EMAIL_IN_USE", "An account with this email already exists");
+    }
+    throw error;
+  }
+  await new Promise<void>((resolve, reject) => {
+    request.session.regenerate((error) => error ? reject(error) : resolve());
+  });
+  request.session.userId = user.id;
+  await new Promise<void>((resolve, reject) => {
+    request.session.save((error) => error ? reject(error) : resolve());
+  });
+  sendData(response, {
+    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+  }, 201);
+});
+
 export const logout = asyncHandler(async (request, response) => {
   await new Promise<void>((resolve, reject) => {
     request.session.destroy((error) => error ? reject(error) : resolve());
   });
-  response.clearCookie("event-florist.sid", {
-    httpOnly: true,
-    sameSite: env.NODE_ENV === "production" ? "none" : "strict",
-    secure: env.NODE_ENV === "production",
-  });
+  response.clearCookie("event-florist.sid", sessionCookieOptions);
   sendData(response, { message: "Signed out" });
 });
 
@@ -49,6 +71,13 @@ export const createFirstAdmin = async () => {
   const existing = await User.findOne({ role: "Administrator" });
   if (existing) return false;
   const passwordHash = await bcrypt.hash(password, 12);
-  await User.create({ name, email: email.toLowerCase(), passwordHash, role: "Administrator" });
+  try {
+    await User.create({ name, email: email.toLowerCase(), passwordHash, role: "Administrator" });
+  } catch (error) {
+    // Two instances starting at the same time can both pass the check above;
+    // the unique email index decides the winner, and the loser must not abort.
+    if (error && typeof error === "object" && "code" in error && error.code === 11000) return false;
+    throw error;
+  }
   return true;
 };
