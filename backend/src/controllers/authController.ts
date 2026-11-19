@@ -29,7 +29,7 @@ export const logout = asyncHandler(async (request, response) => {
   });
   response.clearCookie("event-florist.sid", {
     httpOnly: true,
-    sameSite: env.NODE_ENV === "production" ? "none" : "strict",
+    sameSite: env.SESSION_COOKIE_SAMESITE ?? (env.NODE_ENV === "production" ? "none" : "strict"),
     secure: env.NODE_ENV === "production",
   });
   sendData(response, { message: "Signed out" });
