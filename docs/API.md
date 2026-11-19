@@ -11,12 +11,13 @@ Success responses use `{ "success": true, "data": ... }`. Paginated list respons
 | Method | Route | Access | Purpose |
 | --- | --- | --- | --- |
 | POST | `/auth/login` | Public, rate-limited | Create a secure session |
+| POST | `/auth/register` | Public, rate-limited | Create a Staff account and sign in |
 | POST | `/auth/logout` | Signed in | Revoke the current session |
 | GET | `/auth/me` | Signed in | Return the current user |
 | GET | `/users` | Administrator | Search/paginate team members |
 | POST | `/users` | Administrator | Create a Staff account |
 
-The first Administrator is created by the seed command from `ADMIN_NAME`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD`. Public self-registration is intentionally not enabled.
+The first Administrator is created by the seed command from `ADMIN_NAME`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD`. Public registration creates Staff accounts only; administrator access remains restricted to the configured seed account.
 
 ## Catalog and inventory
 

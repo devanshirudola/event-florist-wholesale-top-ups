@@ -6,7 +6,7 @@ const envSchema = z.object({
   MONGODB_URI: z.string().min(1),
   SESSION_SECRET: z.string().min(32, "SESSION_SECRET must contain at least 32 characters"),
   SESSION_COOKIE_SAMESITE: z.enum(["lax", "strict", "none"]).optional(),
-  FRONTEND_ORIGIN: z.string().url().default("http://localhost:3000"),
+  FRONTEND_ORIGIN: z.string().url().transform((value) => new URL(value).origin).default("http://localhost:3000"),
   ADMIN_EMAIL: z.string().email().optional(),
   ADMIN_NAME: z.string().min(2).optional(),
   ADMIN_PASSWORD: z.string().min(12).optional(),
